@@ -22,6 +22,11 @@ i_adxThresh   = input.int(25, "Trend Strength Threshold (ADX)", minval = 1, maxv
 i_volMult     = input.float(1.5, "Min Range Volatility (ATR Mult)", step=0.1, group=grp_filt)
 i_sweepMult   = input.float(0.5, "Max Sweep Depth (ATR Mult)", step=0.1, group=grp_filt)
 
+// Volume Settings
+grp_vol = "Volume Pivots & Logic"
+i_volLen      = input.int(20, "Volume Lookback", group=grp_vol)
+i_volMult     = input.float(1.5, "High Volume Threshold (x Avg)", step=0.1, group=grp_vol)
+
 i_offsetR = input.int(50, 'Box Offset Right', minval = 0, group = 'Range Visuals')
 
 // FVG Settings
@@ -82,6 +87,11 @@ atr = ta.atr(14)
 isTrending = i_useFilters and adx > i_adxThresh
 isRanging  = not isTrending
 
+// Volume Logic
+avgVol = ta.sma(volume, i_volLen)
+isHighVol = volume > avgVol * i_volMult
+isLowVol  = volume < avgVol * 0.5
+
 // Session Logic (Anchored)
 inSession = not na(time(timeframe.period, i_sessRange, i_timezone))
 newSess = inSession and not inSession[1]
@@ -126,6 +136,14 @@ if low[1] < low[0] and low[1] < low[2]
     swL := low[1]
 if high[1] > high[0] and high[1] > high[2]
     swH := high[1]
+
+// High Volume Pivots (Wyckoff "Effort")
+var float volSwH = na
+var float volSwL = na
+if ta.pivothigh(high, 2, 2) and isHighVol[2]
+    volSwH := high[2]
+if ta.pivotlow(low, 2, 2) and isHighVol[2]
+    volSwL := low[2]
 
 // --- 5. CALCULATIONS: TREND RIBBON ---
 f_ma(x, type, len, off, sig) =>
@@ -174,7 +192,7 @@ var array<line> l_levels = array.new_line()
 var array<label> lb_prices = array.new_label()
 
 // Dashboard Table
-var table dash = table.new(position.top_right, 2, 2, bgcolor=color.new(color.black, 50), border_color=color.gray, border_width=1)
+var table dash = table.new(position.top_right, 2, 3, bgcolor=color.new(color.black, 50), border_color=color.gray, border_width=1)
 
 if barstate.isfirst
     for i = 0 to 7 by 1
@@ -222,6 +240,8 @@ if barstate.islast
     table.cell(dash, 1, 0, isTrending ? "TRENDING" : "RANGING", text_color=isTrending ? color.orange : color.lime, text_size=size.small)
     table.cell(dash, 0, 1, "Volatility", text_color=color.white, text_size=size.small)
     table.cell(dash, 1, 1, isTradeable ? "TRADEABLE" : "CHOP", text_color=isTradeable ? color.lime : color.red, text_size=size.small)
+    table.cell(dash, 0, 2, "Volume", text_color=color.white, text_size=size.small)
+    table.cell(dash, 1, 2, isHighVol ? "CLIMAX" : isLowVol ? "LOW" : "NORMAL", text_color=isHighVol ? color.red : isLowVol ? color.blue : color.gray, text_size=size.small)
 
 // Midnight Open Plot
 plot(midnightOpen, "Midnight Open", color.new(color.white, 50), 1, plot.style_stepline)
@@ -244,13 +264,15 @@ fill(plot_body_l, plot_low, i_showTrend and i_showTrendFill ? color.new(i_trendN
 upperKillZone = rHigh + (atr * i_sweepMult)
 lowerKillZone = rLow - (atr * i_sweepMult)
 
-// Smart SFP Logic (Filtered by Session & Volatility & Regime)
-bool sfpShort = high > rHigh and high < upperKillZone and close < rHigh and not inSession and isTradeable and isRanging
-bool sfpLong  = low < rLow and low > lowerKillZone and close > rLow and not inSession and isTradeable and isRanging
+// Smart SFP Logic (Filtered by Session, Volatility, Regime & Volume)
+// Avoid SFP on Climax Volume (Breakout Traps)
+bool sfpShort = high > rHigh and high < upperKillZone and close < rHigh and not inSession and isTradeable and isRanging and not isHighVol
+bool sfpLong  = low < rLow and low > lowerKillZone and close > rLow and not inSession and isTradeable and isRanging and not isHighVol
 
 // MSS Logic (Break of Structure after SFP)
-bool xSwL = ta.crossunder(close, swL)
-bool xSwH = ta.crossover(close, swH)
+// Require Displacement (Volume > Avg) on the break
+bool xSwL = ta.crossunder(close, swL) and volume > avgVol
+bool xSwH = ta.crossover(close, swH) and volume > avgVol
 bool mssShort = ta.barssince(sfpShort) < 5 and xSwL
 bool mssLong  = ta.barssince(sfpLong) < 5 and xSwH
 
