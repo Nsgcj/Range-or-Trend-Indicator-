@@ -242,13 +242,15 @@ fill(plot_body_l, plot_low, i_showTrend and i_showTrendFill ? color.new(i_trendN
 upperKillZone = rHigh + (atr * i_sweepMult)
 lowerKillZone = rLow - (atr * i_sweepMult)
 
-// Smart SFP Logic (Filtered by Session & Volatility)
-bool sfpShort = high > rHigh and high < upperKillZone and close < rHigh and not inSession and isTradeable
-bool sfpLong  = low < rLow and low > lowerKillZone and close > rLow and not inSession and isTradeable
+// Smart SFP Logic (Filtered by Session & Volatility & Regime)
+bool sfpShort = high > rHigh and high < upperKillZone and close < rHigh and not inSession and isTradeable and isRanging
+bool sfpLong  = low < rLow and low > lowerKillZone and close > rLow and not inSession and isTradeable and isRanging
 
 // MSS Logic (Break of Structure after SFP)
-bool mssShort = ta.barssince(sfpShort) < 5 and ta.crossunder(close, swL)
-bool mssLong  = ta.barssince(sfpLong) < 5 and ta.crossover(close, swH)
+bool xSwL = ta.crossunder(close, swL)
+bool xSwH = ta.crossover(close, swH)
+bool mssShort = ta.barssince(sfpShort) < 5 and xSwL
+bool mssLong  = ta.barssince(sfpLong) < 5 and xSwH
 
 // Legacy Trend/GP Logic
 var bool tBear = false
@@ -262,8 +264,8 @@ if low <= bUp and high >= bLo
 bool pL = close[2] < open[2] and close[1] > open[1] and close > high[1]
 bool pS = close[2] > open[2] and close[1] < open[1] and close < low[1]
 
-bool gpPatternLong  = tBull and pL and isTradeable
-bool gpPatternShort = tBear and pS and isTradeable
+bool gpPatternLong  = tBull and pL and isTradeable and isRanging
+bool gpPatternShort = tBear and pS and isTradeable and isRanging
 
 // Reset State on break
 if gpPatternShort or tBear and high > rHigh
@@ -271,7 +273,9 @@ if gpPatternShort or tBear and high > rHigh
 if gpPatternLong or tBull and low < rLow
     tBull := false
 
-alertcondition(ta.crossover(high, sLo) or ta.crossunder(low, bUp), 'GP Touch', 'Price entered Golden Pocket.')
+bool xGPBear = ta.crossover(high, sLo)
+bool xGPBull = ta.crossunder(low, bUp)
+alertcondition(xGPBear or xGPBull, 'GP Touch', 'Price entered Golden Pocket.')
 alertcondition(gpPatternLong, 'Long Pattern (GP)', 'Long Reversal Pattern in Bullish GP.')
 alertcondition(gpPatternShort, 'Short Pattern (GP)', 'Short Reversal Pattern in Bearish GP.')
 alertcondition(sfpLong, 'SFP Long (Smart)', 'Liquidity Sweep at Session Low (Volatility Filtered).')
