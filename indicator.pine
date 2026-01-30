@@ -126,7 +126,7 @@ else if inSession
     sLow  := math.min(low, sLow)
 
 // Anchor Bar for Visuals
-var int anchorBar = 0
+var int anchorBar = na
 if newSess
     anchorBar := bar_index
 
@@ -212,7 +212,7 @@ if barstate.isfirst
         array.push(l_levels, line.new(na, na, na, na, xloc = xloc.bar_index, color = i_lineColor))
         array.push(lb_prices, label.new(na, na, '', xloc = xloc.bar_index, color = color.new(color.black, 100), textcolor = i_lineColor, size = size.small, style = label.style_label_left))
 
-if barstate.islast
+if barstate.islast and not na(anchorBar)
     int rightBar = bar_index + i_offsetR
 
     // Regime Visibility (Dim if Trending)
