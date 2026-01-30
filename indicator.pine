@@ -103,7 +103,9 @@ else if inSession
     sLow  := math.min(low, sLow)
 
 // Anchor Bar for Visuals
-int anchorBar = ta.valuewhen(newSess, bar_index, 0)
+var int anchorBar = 0
+if newSess
+    anchorBar := bar_index
 
 // Range & Golden Pocket Calcs (Mapped to old variables)
 rHigh = sHigh
