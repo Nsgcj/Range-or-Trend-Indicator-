@@ -1,5 +1,5 @@
 //@version=6
-indicator('Range Indicator Golden Pocket, Liquidity, FairValueGaps, TrendReversal', overlay = true, max_lines_count = 500, max_boxes_count = 500)
+indicator('Range Indicator Golden Pocket, Liquidity, FairValueGaps, TrendReversal', overlay = true, max_lines_count = 500, max_boxes_count = 500, max_bars_back = 2000)
 
 // --- 1. SETTINGS: RANGE & GP ---
 i_boxColor = input.color(color.new(#787b86, 92), 'Range Background', group = 'Range Visuals')
@@ -190,9 +190,9 @@ trend_flip_bear = not trend_bullish and trend_bullish[1]
 // --- 6. FVG LOGIC ---
 if i_showFVG
     if low > high[2]
-        box.new(bar_index[1], low, bar_index + i_fvgLen, high[2], bgcolor = i_bullFVGColor, border_color = na)
+        box.new(bar_index - 1, low, bar_index + i_fvgLen, high[2], bgcolor = i_bullFVGColor, border_color = na)
     if high < low[2]
-        box.new(bar_index[1], high, bar_index + i_fvgLen, low[2], bgcolor = i_bearFVGColor, border_color = na)
+        box.new(bar_index - 1, high, bar_index + i_fvgLen, low[2], bgcolor = i_bearFVGColor, border_color = na)
 
 // --- 7. VISUALS: RANGE & LABELS ---
 var box b_Range = box.new(na, na, na, na, xloc = xloc.bar_index, bgcolor = i_boxColor, border_color = color.gray)
