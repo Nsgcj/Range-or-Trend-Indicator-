@@ -25,7 +25,7 @@ i_sweepMult   = input.float(0.5, "Max Sweep Depth (ATR Mult)", step=0.1, group=g
 // Volume Settings
 grp_vol = "Volume Pivots & Logic"
 i_volLen      = input.int(20, "Volume Lookback", group=grp_vol)
-i_volMult     = input.float(1.5, "High Volume Threshold (x Avg)", step=0.1, group=grp_vol)
+i_volThreshMult = input.float(1.5, "High Volume Threshold (x Avg)", step=0.1, group=grp_vol)
 
 i_offsetR = input.int(50, 'Box Offset Right', minval = 0, group = 'Range Visuals')
 
@@ -59,18 +59,31 @@ p_lb = 5
 pl = ta.pivotlow(low, p_lb, p_lb)
 ph = ta.pivothigh(high, p_lb, p_lb)
 
-vw_rsi_pl = ta.valuewhen(not na(pl), rsiVal[p_lb], 1)
-vw_low_pl = ta.valuewhen(not na(pl), low[p_lb], 1)
-vw_macd_pl = ta.valuewhen(not na(pl), macdLine[p_lb], 1)
+// Refactored to avoid runtime error from ta.valuewhen offset
+// We need to compare Current Pivot vs Previous Pivot.
+var float prev_rsi_pl = na
+var float prev_low_pl = na
+var float prev_macd_pl = na
 
-vw_rsi_ph = ta.valuewhen(not na(ph), rsiVal[p_lb], 1)
-vw_high_ph = ta.valuewhen(not na(ph), high[p_lb], 1)
-vw_macd_ph = ta.valuewhen(not na(ph), macdLine[p_lb], 1)
+var float prev_rsi_ph = na
+var float prev_high_ph = na
+var float prev_macd_ph = na
 
-rsiBull = not na(pl) and rsiVal[p_lb] > vw_rsi_pl and low[p_lb] < vw_low_pl
-macdBull = not na(pl) and macdLine[p_lb] > vw_macd_pl and low[p_lb] < vw_low_pl
-rsiBear = not na(ph) and rsiVal[p_lb] < vw_rsi_ph and high[p_lb] > vw_high_ph
-macdBear = not na(ph) and macdLine[p_lb] < vw_macd_ph and high[p_lb] > vw_high_ph
+// Check Divergence BEFORE updating the "Previous" variables with the "Current" values
+rsiBull = not na(pl) and rsiVal[p_lb] > prev_rsi_pl and low[p_lb] < prev_low_pl
+macdBull = not na(pl) and macdLine[p_lb] > prev_macd_pl and low[p_lb] < prev_low_pl
+rsiBear = not na(ph) and rsiVal[p_lb] < prev_rsi_ph and high[p_lb] > prev_high_ph
+macdBear = not na(ph) and macdLine[p_lb] < prev_macd_ph and high[p_lb] > prev_high_ph
+
+if not na(pl)
+    prev_rsi_pl := rsiVal[p_lb]
+    prev_low_pl := low[p_lb]
+    prev_macd_pl := macdLine[p_lb]
+
+if not na(ph)
+    prev_rsi_ph := rsiVal[p_lb]
+    prev_high_ph := high[p_lb]
+    prev_macd_ph := macdLine[p_lb]
 
 string statusText = 'LIQUIDITY'
 if rsiBull or macdBull
@@ -89,7 +102,7 @@ isRanging  = not isTrending
 
 // Volume Logic
 avgVol = ta.sma(volume, i_volLen)
-isHighVol = volume > avgVol * i_volMult
+isHighVol = volume > avgVol * i_volThreshMult
 isLowVol  = volume < avgVol * 0.5
 
 // Session Logic (Anchored)
@@ -140,9 +153,9 @@ if high[1] > high[0] and high[1] > high[2]
 // High Volume Pivots (Wyckoff "Effort")
 var float volSwH = na
 var float volSwL = na
-if ta.pivothigh(high, 2, 2) and isHighVol[2]
+if not na(ta.pivothigh(high, 2, 2)) and isHighVol[2]
     volSwH := high[2]
-if ta.pivotlow(low, 2, 2) and isHighVol[2]
+if not na(ta.pivotlow(low, 2, 2)) and isHighVol[2]
     volSwL := low[2]
 
 // --- 5. CALCULATIONS: TREND RIBBON ---
