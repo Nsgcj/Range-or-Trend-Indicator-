@@ -286,8 +286,21 @@ bool sfpLong  = low < rLow and low > lowerKillZone and close > rLow and not inSe
 // Require Displacement (Volume > Avg) on the break
 bool xSwL = ta.crossunder(close, swL) and volume > avgVol
 bool xSwH = ta.crossover(close, swH) and volume > avgVol
-bool mssShort = ta.barssince(sfpShort) < 5 and xSwL
-bool mssLong  = ta.barssince(sfpLong) < 5 and xSwH
+
+var int barsSinceSfpShort = 9999
+if sfpShort
+    barsSinceSfpShort := 0
+else
+    barsSinceSfpShort += 1
+
+var int barsSinceSfpLong = 9999
+if sfpLong
+    barsSinceSfpLong := 0
+else
+    barsSinceSfpLong += 1
+
+bool mssShort = barsSinceSfpShort < 5 and xSwL
+bool mssLong  = barsSinceSfpLong < 5 and xSwH
 
 // Legacy Trend/GP Logic
 var bool tBear = false
